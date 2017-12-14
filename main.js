@@ -69,6 +69,70 @@ function getMarketData(options, coin_prices, callback) {   //GET JSON DATA
     });
 }
 
+
+function getBest (data) {
+
+    let Arbitrage = {
+      bestCoin:{},
+      topCoins:[]
+    };
+
+    let topN = 4; // Prime migliori 4 coins -> la prima "bestCoin" + 3 topCoins
+    let highestN = 1;
+    let initN = 1;
+    let dataLen = data.length;
+
+    for (let i = dataLen - initN; i >= dataLen - topN; i--) { //Loop through top 10
+
+        let market1 = data[i].market1.name, market2 = data[i].market2.name, pairIndex, coinName = data[i].coin;
+
+        for (let j = data.length - 1; j >= 0; j--) {
+            if (
+                data[j].market1.name === market2 //equal ...
+                && data[j].market2.name === market1 // to opposite market
+                && data[i].coin !== data[j].coin //and isnt the same coin as pair
+                && data[j].coin !== 'BTC' //and isnt BTC
+              ) // and isnt disabled
+            {
+                pairIndex = j;
+                break;
+            }
+        }
+
+        if (pairIndex > -1) { //TODO  FIX pairs, not showing up correctly
+            let context = { //All required data
+                coin: data[i].coin,
+                diff: ((data[i].spread - 1) * 100).toFixed(3),
+                market2price: (data[i].market2.last * 1000).toPrecision(3),
+                market2: market2,
+                market1price: (data[i].market1.last * 1000).toPrecision(3),
+                market1: market1,
+                pair: {
+                    coin: data[pairIndex].coin,
+                    diff: ((data[pairIndex].spread - 1) * 100).toFixed(3),
+                    market2price: (data[pairIndex].market2.last * 1000).toPrecision(3),
+                    market2: data[pairIndex].market2.name,
+                    market1price: (data[pairIndex].market1.last * 1000).toPrecision(3),
+                    market1: data[pairIndex].market1.name,
+                },
+                totalDiff: (((data[i].spread - 1) * 100) + ((data[pairIndex].spread - 1) * 100)).toFixed(2)
+            };
+
+            if (i === data.length - highestN) { //Add only the highest
+              Arbitrage.bestCoin = context;
+            }else{
+              Arbitrage.topCoins.push(context);
+            }
+
+        }else if (data.length - topN > 0) {
+            topN++;
+            highestN++;
+        }
+    }
+
+    return Arbitrage;
+};
+
 async function computePrices(data) {
     results = [];
 
@@ -118,7 +182,7 @@ async function computePrices(data) {
 
                                     }
                                 );
-                                
+
                                 // db.insert({
                                 //     coin: coin,
                                 //     lastSpread: arr[i][0] / arr[j][0],
@@ -148,7 +212,9 @@ async function computePrices(data) {
 
     await loopData();
 
-    console.log("Emitting Results...")
+    console.log("Emitting Results...");
+
+    console.log(getBest(results)); //  JSON with best Coins " Graziano "
 
     io.emit('results', results);
 }
@@ -158,9 +224,11 @@ async function computePrices(data) {
     let arrayOfRequests = [];
 
     for (let i = 0; i < markets.length; i++) {
-        arrayOfRequests.push(getMarketData(markets[i], coin_prices));
+        if(markets[i].enabled){
+          arrayOfRequests.push(getMarketData(markets[i], coin_prices));
+        }
     }
-
+    console.log("request"+arrayOfRequests.length);
     await Promise.all(arrayOfRequests.map(p => p.catch(e => e)))
 
         .then(results => computePrices(coin_prices))

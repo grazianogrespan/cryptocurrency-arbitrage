@@ -203,7 +203,8 @@ $(window).load(function () {
     }
 
     useData = function () {
-        console.log(data);
+-       console.log(data);
+
         let topN = $('.loadNumberInput').val();
         if (!topN) topN = 5;
         let highestN = 1;
@@ -256,7 +257,7 @@ $(window).load(function () {
 
                     let html = highTemplate(context);
                     highest.append(html);
-                    console.log("Appending...")
+                    console.log("Appending...");
                 }
                 else if (data.length - topN > 0) {
                     topN++;
@@ -293,7 +294,3 @@ $(window).load(function () {
     });
 
 });
-
-
-
-
